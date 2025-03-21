@@ -24,6 +24,10 @@ import org.jfree.chart.plot.PiePlot3D;
 import org.jfree.chart.renderer.category.BarRenderer;
 import org.jfree.data.general.DefaultPieDataset;
 import org.jfree.chart.util.Rotation;
+import org.jfree.chart.ui.RectangleInsets;
+import java.awt.Color;
+import java.awt.BasicStroke;
+import org.jfree.chart.axis.CategoryLabelPositions;
 
 public class CreditCalculator extends JFrame {
     private JTextField dureeField, montantField, tauxField, coutMensuelField, montantInteretsField;
@@ -149,11 +153,15 @@ public class CreditCalculator extends JFrame {
             double interetsCumul = Double.parseDouble(model.getValueAt(i, 4).toString().replace(',', '.'));
             double interetsMensuels = Double.parseDouble(model.getValueAt(i, 5).toString().replace(',', '.'));
 
-            dataset1.addValue(capitalRestantDu, "Capital restant dû", Integer.toString(mensualite));
-            dataset1.addValue(interetsCumul, "Intérêts cumulés", Integer.toString(mensualite));
-            dataset2.addValue(amortissementMensuel, "Amortissement mensuel", Integer.toString(mensualite));
-            dataset2.addValue(remboursementMensuel, "Remboursement mensuel", Integer.toString(mensualite));
-            dataset2.addValue(interetsMensuels, "Intérêts mensuels", Integer.toString(mensualite));
+            // Afficher une valeur sur quatre
+            if (i % 4 == 0) {
+                String annee = String.format("%.1f", mensualite / 12.0);
+                dataset1.addValue(capitalRestantDu, "Capital restant dû", annee);
+                dataset1.addValue(interetsCumul, "Intérêts cumulés", annee);
+                dataset2.addValue(amortissementMensuel, "Amortissement mensuel", annee);
+                dataset2.addValue(remboursementMensuel, "Remboursement mensuel", annee);
+                dataset2.addValue(interetsMensuels, "Intérêts mensuels", annee);
+            }
         }
 
         // Get values from input fields
@@ -166,7 +174,7 @@ public class CreditCalculator extends JFrame {
 
         JFreeChart chart = ChartFactory.createLineChart(
                 chartTitle,
-                "Mensualité",
+                "Année",
                 "Montant (€)",
                 dataset1,
                 PlotOrientation.VERTICAL,
@@ -183,12 +191,31 @@ public class CreditCalculator extends JFrame {
         plot.setRangeAxis(1, rangeAxis2);
 
         LineAndShapeRenderer renderer2 = new LineAndShapeRenderer();
+        renderer2.setSeriesStroke(0, new BasicStroke(1.0f));
+        renderer2.setSeriesStroke(1, new BasicStroke(1.0f));
+        renderer2.setSeriesStroke(2, new BasicStroke(1.0f));
+        renderer2.setSeriesShapesVisible(0, false); // Amortissement mensuel
+        renderer2.setSeriesShapesVisible(1, false); // Remboursement mensuel
+        renderer2.setSeriesShapesVisible(2, false); // Intérêts mensuels
         plot.setRenderer(1, renderer2);
         plot.setDatasetRenderingOrder(DatasetRenderingOrder.FORWARD);
 
         // Set renderer for interests as bar chart
         BarRenderer barRenderer = new BarRenderer();
+        barRenderer.setSeriesPaint(0, new Color(102, 205, 170));
+        barRenderer.setSeriesPaint(1, new Color(255, 182, 193));
         plot.setRenderer(0, barRenderer);
+
+        // Set plot background color
+        plot.setBackgroundPaint(new Color(255, 228, 196));
+        plot.setOutlinePaint(Color.BLACK);
+        plot.setRangeGridlinePaint(Color.GRAY);
+        plot.setDomainGridlinePaint(Color.GRAY);
+
+        // Set X-axis label rotation and reduce the number of labels
+        plot.getDomainAxis().setCategoryLabelPositions(CategoryLabelPositions.UP_45);
+        plot.getDomainAxis().setTickLabelFont(new Font("SansSerif", Font.PLAIN, 10));
+        plot.getDomainAxis().setMaximumCategoryLabelWidthRatio(0.5f);
 
         // Display the chart in a window
         ChartPanel chartPanel = new ChartPanel(chart);
@@ -206,8 +233,8 @@ public class CreditCalculator extends JFrame {
 
         // Create pie chart for credit amount and cumulative interests
         DefaultPieDataset pieDataset = new DefaultPieDataset();
-        pieDataset.setValue("Montant du crédit", montant);
-        pieDataset.setValue("Intérêts cumulés", Double.parseDouble(montantInteretsField.getText().replace(',', '.')));
+        pieDataset.setValue(String.format("Montant du crédit (€): %.2f", (double) montant), montant);
+        pieDataset.setValue(String.format("Intérêts cumulés (€): %.2f", Double.parseDouble(montantInteretsField.getText().replace(',', '.'))), Double.parseDouble(montantInteretsField.getText().replace(',', '.')));
 
         JFreeChart pieChart = ChartFactory.createPieChart3D(
                 "Répartition du crédit",
@@ -221,6 +248,8 @@ public class CreditCalculator extends JFrame {
         plot3D.setStartAngle(290);
         plot3D.setDirection(Rotation.CLOCKWISE);
         plot3D.setForegroundAlpha(0.5f);
+        plot3D.setBackgroundPaint(new Color(255, 228, 196));
+        plot3D.setOutlinePaint(Color.BLACK);
 
         ChartPanel pieChartPanel = new ChartPanel(pieChart);
         JFrame pieChartFrame = new JFrame("Graphique en Camembert 3D");
