@@ -19,6 +19,11 @@ import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.chart.renderer.category.LineAndShapeRenderer;
 import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.category.DefaultCategoryDataset;
+import org.jfree.chart.plot.Plot;
+import org.jfree.chart.plot.PiePlot3D;
+import org.jfree.chart.renderer.category.BarRenderer;
+import org.jfree.data.general.DefaultPieDataset;
+import org.jfree.chart.util.Rotation;
 
 public class CreditCalculator extends JFrame {
     private JTextField dureeField, montantField, tauxField, coutMensuelField, montantInteretsField;
@@ -61,7 +66,7 @@ public class CreditCalculator extends JFrame {
             @Override
             public void actionPerformed(ActionEvent e) {
                 calculerCredit();
-            }
+            }  
         });
         panel.add(calculerButton);
 
@@ -117,13 +122,13 @@ public class CreditCalculator extends JFrame {
     private void sauvegarderTableauAmortissement(DefaultTableModel model) {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter("Amortissement.txt"))) {
             for (int i = 0; i < model.getColumnCount(); i++) {
-                writer.write(model.getColumnName(i) + "\t");
+                writer.write(model.getColumnName(i) + "\\t");
             }
             writer.newLine();
 
             for (int i = 0; i < model.getRowCount(); i++) {
                 for (int j = 0; j < model.getColumnCount(); j++) {
-                    writer.write(model.getValueAt(i, j).toString().replace(',', '.') + "\t");
+                    writer.write(model.getValueAt(i, j).toString().replace(',', '.') + "\\t");
                 }
                 writer.newLine();
             }
@@ -137,7 +142,7 @@ public class CreditCalculator extends JFrame {
         DefaultCategoryDataset dataset2 = new DefaultCategoryDataset();
 
         for (int i = 0; i < model.getRowCount(); i++) {
-            int mensualite = (int) model.getValueAt(i, 0);
+            int mensualite = Integer.parseInt(model.getValueAt(i, 0).toString());
             double capitalRestantDu = Double.parseDouble(model.getValueAt(i, 1).toString().replace(',', '.'));
             double amortissementMensuel = Double.parseDouble(model.getValueAt(i, 2).toString().replace(',', '.'));
             double remboursementMensuel = Double.parseDouble(model.getValueAt(i, 3).toString().replace(',', '.'));
@@ -151,8 +156,16 @@ public class CreditCalculator extends JFrame {
             dataset2.addValue(interetsMensuels, "Intérêts mensuels", Integer.toString(mensualite));
         }
 
+        // Get values from input fields
+        int duree = Integer.parseInt(dureeField.getText());
+        int montant = Integer.parseInt(montantField.getText());
+        int taux = Integer.parseInt(tauxField.getText());
+
+        // Create chart title
+        String chartTitle = String.format("Amortissement de %d € sur %d mois à %d%%", montant, duree, taux);
+
         JFreeChart chart = ChartFactory.createLineChart(
-                "Tableau d'Amortissement",
+                chartTitle,
                 "Mensualité",
                 "Montant (€)",
                 dataset1,
@@ -173,6 +186,10 @@ public class CreditCalculator extends JFrame {
         plot.setRenderer(1, renderer2);
         plot.setDatasetRenderingOrder(DatasetRenderingOrder.FORWARD);
 
+        // Set renderer for interests as bar chart
+        BarRenderer barRenderer = new BarRenderer();
+        plot.setRenderer(0, barRenderer);
+
         // Display the chart in a window
         ChartPanel chartPanel = new ChartPanel(chart);
         JFrame chartFrame = new JFrame("Graphique d'Amortissement");
@@ -183,6 +200,37 @@ public class CreditCalculator extends JFrame {
 
         try {
             ChartUtils.saveChartAsPNG(new java.io.File("Amortissement.png"), chart, 800, 600);
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(this, "Erreur lors de la sauvegarde de l'image.", "Erreur", JOptionPane.ERROR_MESSAGE);
+        }
+
+        // Create pie chart for credit amount and cumulative interests
+        DefaultPieDataset pieDataset = new DefaultPieDataset();
+        pieDataset.setValue("Montant du crédit", montant);
+        pieDataset.setValue("Intérêts cumulés", Double.parseDouble(montantInteretsField.getText().replace(',', '.')));
+
+        JFreeChart pieChart = ChartFactory.createPieChart3D(
+                "Répartition du crédit",
+                pieDataset,
+                true,
+                true,
+                false
+        );
+
+        PiePlot3D plot3D = (PiePlot3D) pieChart.getPlot();
+        plot3D.setStartAngle(290);
+        plot3D.setDirection(Rotation.CLOCKWISE);
+        plot3D.setForegroundAlpha(0.5f);
+
+        ChartPanel pieChartPanel = new ChartPanel(pieChart);
+        JFrame pieChartFrame = new JFrame("Graphique en Camembert 3D");
+        pieChartFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        pieChartFrame.add(pieChartPanel);
+        pieChartFrame.pack();
+        pieChartFrame.setVisible(true);
+
+        try {
+            ChartUtils.saveChartAsPNG(new java.io.File("RepartitionCredit.png"), pieChart, 800, 600);
         } catch (IOException e) {
             JOptionPane.showMessageDialog(this, "Erreur lors de la sauvegarde de l'image.", "Erreur", JOptionPane.ERROR_MESSAGE);
         }
@@ -224,8 +272,7 @@ class Amortissement {
             capitalRestant -= amortissementMensuel;
             interetsCumul += interetsMensuels;
 
-            Object[] row = {i, String.format("%.2f", capitalRestant).replace(',', '.'), String.format("%.2f", amortissementMensuel).replace(',', '.'),
-                            String.format("%.2f", coutMensuel).replace(',', '.'), String.format("%.2f", interetsCumul).replace(',', '.'), String.format("%.2f", interetsMensuels).replace(',', '.')};
+            Object[] row = {i, String.format("%.2f", capitalRestant).replace(',', '.'), String.format("%.2f", amortissementMensuel).replace(',', '.'), String.format("%.2f", coutMensuel).replace(',', '.'), String.format("%.2f", interetsCumul).replace(',', '.'), String.format("%.2f", interetsMensuels).replace(',', '.')};
             model.addRow(row);
         }
 
